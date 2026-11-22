@@ -1,0 +1,6 @@
+{
+  "name": "BioLens AI",
+  "description": "Interactive STEM Lab & Research Copilot for real-time statistical analysis, Z-score anomaly detection, and AI-assisted hypothesis synthesis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
