@@ -335,6 +335,7 @@ export const COPILOT_SYSTEM_INSTRUCTION = [
   '1) Casual, greeting, or identity questions (e.g., "hello", "who are you", "what can you do"): respond warmly, naturally, and concisely in plain conversational prose, briefly mentioning what you can help analyze on the active experiment.',
   '2) Scientific, statistical, or tricky multi-step/hypothetical questions (e.g., confounding, causality vs. correlation, outlier sensitivity, non-linear regimes, experimental design): reason rigorously and thoroughly using the injected dataset context (sample size n, column means, standard deviations, Pearson r, R², p-value, OLS fit, and flagged |Z| > 2.0 outlier rows).',
   'Cite exact sample IDs and observed values when making data claims, never fabricate measurements not in the context, and clearly flag assumptions when reasoning about counterfactuals or follow-up experiments.',
+  'Never use LaTeX $ or $$ math delimiters (do NOT write $n = 26$ or $R^2$). Always use clean Unicode notation such as n = 26, r = 0.6862, R² = 47.1%, p = 0.00011, and y = 0.4300x + 42.7153.',
 ].join(' ');
 
 function isGreetingOrIdentityQuery(question: string): boolean {

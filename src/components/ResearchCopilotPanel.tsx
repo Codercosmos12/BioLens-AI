@@ -20,6 +20,133 @@ import {
 
 type CopilotTab = 'synthesis' | 'chat';
 
+function cleanScientificText(raw: string): string {
+  return raw
+    .replace(/\$\$([^$]+)\$\$/g, '$1')
+    .replace(/\$([^$\n]+)\$/g, '$1')
+    .replace(/(^|\s)\$(\s|$)/g, '$1$2')
+    .replace(/R\^2/g, 'R²')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\times/g, '×')
+    .replace(/\\pm/g, '±')
+    .replace(/\\approx/g, '≈')
+    .replace(/\\le/g, '≤')
+    .replace(/\\ge/g, '≥')
+    .replace(/\\%/g, '%');
+}
+
+function renderInlineTokens(text: string): React.ReactNode[] {
+  const tokens = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return tokens.map((token, idx) => {
+    if (token.startsWith('**') && token.endsWith('**') && token.length > 4) {
+      return (
+        <strong key={idx} className="font-semibold text-white">
+          {token.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (token.startsWith('`') && token.endsWith('`') && token.length > 2) {
+      return (
+        <code
+          key={idx}
+          className="rounded bg-[#090D16] px-1 py-0.5 font-mono text-[11px] text-emerald-300"
+        >
+          {token.slice(1, -1)}
+        </code>
+      );
+    }
+    return <React.Fragment key={idx}>{token}</React.Fragment>;
+  });
+}
+
+function renderCopilotMarkdown(rawText: string, showCursor = false): React.ReactNode {
+  const cleaned = cleanScientificText(rawText);
+  const lines = cleaned.split('\n');
+  const blocks: React.ReactNode[] = [];
+
+  lines.forEach((rawLine, idx) => {
+    const trimmed = rawLine.trim();
+    const isLastLine = idx === lines.length - 1;
+    const cursorNode =
+      showCursor && isLastLine ? (
+        <span
+          aria-hidden="true"
+          className="ml-1 inline-block h-3.5 w-1.5 align-middle bg-emerald-400 animate-pulse"
+        />
+      ) : null;
+
+    if (!trimmed) {
+      if (idx > 0 && idx < lines.length - 1) {
+        blocks.push(<div key={`gap-${idx}`} className="h-1.5" />);
+      }
+      return;
+    }
+
+    const headingMatch = trimmed.match(/^#{1,3}\s+(.+)$/);
+    if (headingMatch) {
+      blocks.push(
+        <h4
+          key={`h-${idx}`}
+          className="mt-2 first:mt-0 font-display text-xs font-semibold tracking-wide text-emerald-300"
+        >
+          {renderInlineTokens(headingMatch[1])}
+          {cursorNode}
+        </h4>
+      );
+      return;
+    }
+
+    const bulletMatch = trimmed.match(/^(?:[-*•])\s+(.+)$/);
+    if (bulletMatch) {
+      blocks.push(
+        <div key={`b-${idx}`} className="flex items-start gap-2 pl-1.5">
+          <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400/85" />
+          <p className="flex-1 text-slate-100 leading-relaxed">
+            {renderInlineTokens(bulletMatch[1])}
+            {cursorNode}
+          </p>
+        </div>
+      );
+      return;
+    }
+
+    const numberedMatch = trimmed.match(/^(\d+\.)\s+(.+)$/);
+    if (numberedMatch) {
+      blocks.push(
+        <div key={`n-${idx}`} className="flex items-start gap-2 pl-1">
+          <span className="font-mono text-[11px] font-semibold text-violet-300 shrink-0">
+            {numberedMatch[1]}
+          </span>
+          <p className="flex-1 text-slate-100 leading-relaxed">
+            {renderInlineTokens(numberedMatch[2])}
+            {cursorNode}
+          </p>
+        </div>
+      );
+      return;
+    }
+
+    blocks.push(
+      <p key={`p-${idx}`} className="text-slate-100 leading-relaxed">
+        {renderInlineTokens(trimmed)}
+        {cursorNode}
+      </p>
+    );
+  });
+
+  if (blocks.length === 0 && showCursor) {
+    blocks.push(
+      <span
+        key="cursor-only"
+        aria-hidden="true"
+        className="inline-block h-3.5 w-1.5 align-middle bg-emerald-400 animate-pulse"
+      />
+    );
+  }
+
+  return <div className="space-y-1.5">{blocks}</div>;
+}
+
 interface ResearchCopilotPanelProps {
   dataset: ExperimentDataset;
   analysis: DatasetAnalysis;
@@ -307,10 +434,10 @@ export const ResearchCopilotPanel: React.FC<ResearchCopilotPanelProps> = ({
           {/* Chat Message Log */}
           <div
             ref={chatScrollRef}
-            className="max-h-[340px] min-h-[200px] space-y-3 overflow-y-auto rounded-lg border border-[#1F2937] bg-[#090D16] p-3.5"
+            className="max-h-[440px] min-h-[280px] space-y-3 overflow-y-auto rounded-lg border border-[#1F2937] bg-[#090D16] p-3.5"
           >
             {messages.length === 0 && !streamingMessage?.content ? (
-              <p className="py-10 text-center text-xs text-slate-400">
+              <p className="py-14 text-center text-xs text-slate-400">
                 Ask about outliers, p-values, regression slopes, or follow-up experiments for{' '}
                 {dataset.shortTitle}.
               </p>
@@ -324,7 +451,7 @@ export const ResearchCopilotPanel: React.FC<ResearchCopilotPanelProps> = ({
                       : 'mr-4 border border-[#1F2937] bg-[#111827] text-slate-100'
                   }`}
                 >
-                  <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
                     <span className="font-medium text-slate-300">
                       {msg.role === 'user' ? 'Researcher' : 'BioLens Copilot'}
                     </span>
@@ -333,31 +460,33 @@ export const ResearchCopilotPanel: React.FC<ResearchCopilotPanelProps> = ({
                       {msg.timestamp}
                     </span>
                   </div>
-                  <div className="text-slate-100 leading-relaxed whitespace-pre-wrap">
-                    {msg.content?.trim()
-                      ? msg.content
-                      : 'No response text was returned for this query. Please retry or switch to Demo Intelligence Mode.'}
-                  </div>
+                  {msg.role === 'assistant' ? (
+                    msg.content?.trim() ? (
+                      renderCopilotMarkdown(msg.content)
+                    ) : (
+                      <p className="text-slate-300">
+                        No response text was returned for this query. Please retry or switch to Demo Intelligence Mode.
+                      </p>
+                    )
+                  ) : (
+                    <div className="text-slate-100 leading-relaxed whitespace-pre-wrap">
+                      {msg.content}
+                    </div>
+                  )}
                 </div>
               ))
             )}
 
             {streamingMessage?.content && (
               <div className="mr-4 rounded-lg border border-emerald-500/35 bg-[#111827] p-3 text-xs leading-relaxed text-slate-100">
-                <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
                   <span className="font-medium text-emerald-300">BioLens Copilot</span>
                   <span className="font-mono text-emerald-400">
                     {streamingMessage.modelUsed ? `${streamingMessage.modelUsed} · ` : ''}
                     streaming
                   </span>
                 </div>
-                <div className="text-slate-100 leading-relaxed whitespace-pre-wrap">
-                  {streamingMessage.content}
-                  <span
-                    aria-hidden="true"
-                    className="ml-1 inline-block h-3.5 w-1.5 align-middle bg-emerald-400 animate-pulse"
-                  />
-                </div>
+                {renderCopilotMarkdown(streamingMessage.content, true)}
               </div>
             )}
 
