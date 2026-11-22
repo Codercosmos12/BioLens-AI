@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api/ai/status", "destination": "/api/health" },
+    { "source": "/api/ai/test", "destination": "/api/health?action=test" },
+    { "source": "/api/research/synthesize", "destination": "/api/gemini?action=synthesize" },
+    { "source": "/api/research/chat", "destination": "/api/gemini?action=chat" },
+    { "source": "/api/research/chat/stream", "destination": "/api/gemini?action=stream" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
